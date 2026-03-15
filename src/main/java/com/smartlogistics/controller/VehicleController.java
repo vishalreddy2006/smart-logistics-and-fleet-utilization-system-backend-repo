@@ -42,6 +42,12 @@ public class VehicleController {
         return ResponseEntity.ok(vehicles);
     }
 
+    @GetMapping
+    public ResponseEntity<List<Vehicle>> getVehicles() {
+        List<Vehicle> vehicles = vehicleRepository.findAll();
+        return ResponseEntity.ok(vehicles);
+    }
+
     @PutMapping("/update/{id}")
     public ResponseEntity<Vehicle> updateVehicle(@PathVariable Long id, @RequestBody Vehicle vehicle) {
         Optional<Vehicle> existingVehicle = vehicleRepository.findById(id);

@@ -37,17 +37,28 @@ public class TripService {
         double distance = trip.getDistance() != null ? trip.getDistance() : 0.0;
         double loadWeight = trip.getLoadWeight() != null ? trip.getLoadWeight() : 0.0;
 
-        List<Vehicle> availableVehicles = vehicleRepository.findByStatus("AVAILABLE");
+        // Resolve the vehicle: prefer user-selected vehicle; fall back to AI recommendation
+        Vehicle assignedVehicle = null;
 
-        Vehicle recommendedVehicle = vehicleRecommendationService.recommendVehicle(distance, loadWeight, availableVehicles);
+        if (trip.getVehicle() != null) {
+            Long vehicleId = trip.getVehicle().getVehicleId();
+            if (vehicleId != null) {
+                assignedVehicle = vehicleRepository.findById(vehicleId).orElse(null);
+            }
+        }
 
-        int vehicleAge = recommendedVehicle.getAge() != null ? recommendedVehicle.getAge() : 0;
+        if (assignedVehicle == null) {
+            List<Vehicle> availableVehicles = vehicleRepository.findByStatus("AVAILABLE");
+            assignedVehicle = vehicleRecommendationService.recommendVehicle(distance, loadWeight, availableVehicles);
+        }
+
+        int vehicleAge = assignedVehicle.getAge() != null ? assignedVehicle.getAge() : 0;
         double predictedFuel = fuelPredictionService.predictFuel(distance, loadWeight, vehicleAge);
         double carbonEmission = carbonEmissionService.calculateEmission(predictedFuel);
 
         trip.setPredictedFuel(predictedFuel);
         trip.setCarbonEmission(carbonEmission);
-        trip.setVehicle(recommendedVehicle);
+        trip.setVehicle(assignedVehicle);
 
         return tripRepository.save(trip);
     }

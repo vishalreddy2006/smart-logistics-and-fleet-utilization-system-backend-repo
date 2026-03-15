@@ -28,6 +28,12 @@ public class Vehicle {
     @Column(name = "maintenance_risk", length = 10)
     private String maintenanceRisk;
 
+    @Column(name = "failure_score")
+    private Double failureScore;
+
+    @Column(name = "days_left_for_service")
+    private Integer daysLeftForService;
+
     public Vehicle() {
     }
 
@@ -104,5 +110,21 @@ public class Vehicle {
         }
 
         this.maintenanceRisk = normalizedRisk;
+    }
+
+    public Double getFailureScore() {
+        return failureScore;
+    }
+
+    public void setFailureScore(Double failureScore) {
+        this.failureScore = failureScore;
+    }
+
+    public Integer getDaysLeftForService() {
+        return daysLeftForService;
+    }
+
+    public void setDaysLeftForService(Integer daysLeftForService) {
+        this.daysLeftForService = daysLeftForService;
     }
 }
