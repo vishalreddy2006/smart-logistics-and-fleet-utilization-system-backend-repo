@@ -36,4 +36,10 @@ public class TripController {
         List<Trip> trips = tripService.getAllTrips();
         return ResponseEntity.ok(trips);
     }
+
+    @GetMapping
+    public ResponseEntity<List<Trip>> getTrips() {
+        List<Trip> trips = tripService.getAllTrips();
+        return ResponseEntity.ok(trips);
+    }
 }

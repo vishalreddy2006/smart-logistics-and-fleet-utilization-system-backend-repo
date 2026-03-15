@@ -16,6 +16,10 @@ public class MaintenanceService {
         this.vehicleRepository = vehicleRepository;
     }
 
+    public List<Vehicle> getMaintenanceData() {
+        return vehicleRepository.findAll();
+    }
+
     public List<Vehicle> predictMaintenance() {
         List<Vehicle> vehicles = vehicleRepository.findAll();
 
