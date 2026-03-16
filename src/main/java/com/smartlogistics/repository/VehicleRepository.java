@@ -16,9 +16,5 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     List<Vehicle> findByUser_Id(Long userId);
 
-    default List<Vehicle> findByUserId(Long userId) {
-        return findByUser_Id(userId);
-    }
-
     List<Vehicle> findByUserIsNull();
 }

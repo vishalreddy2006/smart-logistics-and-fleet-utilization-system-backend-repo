@@ -53,8 +53,11 @@ public class TripService {
 
                 // Verify ownership if user is authenticated
                 if (assignedVehicle != null && currentUserId != null
-                        && !assignedVehicle.getUserId().equals(currentUserId)) {
+                        && (assignedVehicle.getUser() == null
+                        || !assignedVehicle.getUser().getId().equals(currentUserId))) {
+
                     throw new RuntimeException("Unauthorized access: You can only create trips with your own vehicles");
+
                 }
             }
         }
@@ -63,7 +66,7 @@ public class TripService {
             // Get available vehicles - filter by user if authenticated
             List<Vehicle> availableVehicles;
             if (currentUserId != null) {
-                availableVehicles = vehicleRepository.findByUserId(currentUserId);
+                availableVehicles = vehicleRepository.findByUser_Id(currentUserId);
                 availableVehicles = availableVehicles.stream()
                         .filter(v -> "AVAILABLE".equals(v.getStatus()))
                         .toList();

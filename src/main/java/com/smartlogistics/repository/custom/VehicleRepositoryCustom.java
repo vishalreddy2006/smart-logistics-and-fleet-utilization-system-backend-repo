@@ -42,7 +42,8 @@ public class VehicleRepositoryCustom {
                 Vehicle existingVehicle = existing.get();
 
                 // Check ownership for update
-                if (currentUserId != null && !existingVehicle.getUserId().equals(currentUserId)) {
+                if (currentUserId != null && (existingVehicle.getUser() == null
+                        || !existingVehicle.getUser().getId().equals(currentUserId))) {
                     throw new RuntimeException("Unauthorized access: You can only update your own vehicles");
                 }
             }
