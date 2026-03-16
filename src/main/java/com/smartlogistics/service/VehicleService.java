@@ -2,13 +2,16 @@ package com.smartlogistics.service;
 
 import java.util.List;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import com.smartlogistics.entity.User;
 import com.smartlogistics.entity.Vehicle;
 import com.smartlogistics.exception.VehicleInUseException;
 import com.smartlogistics.repository.TripRepository;
+import com.smartlogistics.repository.UserRepository;
 import com.smartlogistics.repository.VehicleRepository;
-import com.smartlogistics.util.UserContext;
 
 @Service
 public class VehicleService {
@@ -16,28 +19,49 @@ public class VehicleService {
     private final VehicleRepository vehicleRepository;
     private final TripRepository tripRepository;
     private final MaintenancePredictionService maintenancePredictionService;
-    private final UserContext userContext;
+    private final UserRepository userRepository;
 
     public VehicleService(VehicleRepository vehicleRepository,
                           TripRepository tripRepository,
                           MaintenancePredictionService maintenancePredictionService,
-                          UserContext userContext) {
+                          UserRepository userRepository) {
         this.vehicleRepository = vehicleRepository;
         this.tripRepository = tripRepository;
         this.maintenancePredictionService = maintenancePredictionService;
-        this.userContext = userContext;
+        this.userRepository = userRepository;
+    }
+
+    public Vehicle addVehicle(Vehicle vehicle) {
+        User user = getAuthenticatedUser();
+        vehicle.setUser(user);
+        return vehicleRepository.save(vehicle);
+    }
+
+    public List<Vehicle> getVehiclesForCurrentUser() {
+        User user = getAuthenticatedUser();
+        return vehicleRepository.findByUserId(user.getId());
+    }
+
+    public Vehicle updateVehicle(Long vehicleId, Vehicle vehicleDetails) {
+        User user = getAuthenticatedUser();
+        Vehicle existingVehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new IllegalArgumentException("Vehicle not found with id: " + vehicleId));
+
+        validateOwnership(existingVehicle, user);
+
+        existingVehicle.setVehicleType(vehicleDetails.getVehicleType());
+        existingVehicle.setCapacity(vehicleDetails.getCapacity());
+        existingVehicle.setMileage(vehicleDetails.getMileage());
+        existingVehicle.setAge(vehicleDetails.getAge());
+        existingVehicle.setStatus(vehicleDetails.getStatus());
+        existingVehicle.setUser(user);
+
+        return vehicleRepository.save(existingVehicle);
     }
 
     public List<Vehicle> scanFleetMaintenance() {
-        Long currentUserId = userContext.getCurrentUserIdOrNull();
-        List<Vehicle> vehicles;
-
-        // Filter by current user if authenticated
-        if (currentUserId != null) {
-            vehicles = vehicleRepository.findByUserId(currentUserId);
-        } else {
-            vehicles = vehicleRepository.findAll();
-        }
+        User user = getAuthenticatedUser();
+        List<Vehicle> vehicles = vehicleRepository.findByUserId(user.getId());
 
         for (Vehicle vehicle : vehicles) {
             int age = vehicle.getAge() != null ? vehicle.getAge() : 0;
@@ -52,22 +76,35 @@ public class VehicleService {
     }
 
     public void deleteVehicle(Long vehicleId) {
-        Long currentUserId = userContext.getCurrentUserIdOrNull();
-
-        // Check vehicle exists
+        User user = getAuthenticatedUser();
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new IllegalArgumentException("Vehicle not found with id: " + vehicleId));
 
-        // Verify ownership if user is authenticated
-        if (currentUserId != null && !vehicle.getUserId().equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized access: You can only delete your own vehicles");
-        }
+        validateOwnership(vehicle, user);
 
-        // Check if vehicle is in use
         if (tripRepository.existsByVehicleVehicleId(vehicleId)) {
             throw new VehicleInUseException("Vehicle cannot be deleted because it is assigned to existing trips.");
         }
 
         vehicleRepository.deleteById(vehicleId);
+    }
+
+    private User getAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || authentication.getName() == null
+                || "anonymousUser".equals(authentication.getName())) {
+            throw new RuntimeException("Unauthorized access");
+        }
+
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private void validateOwnership(Vehicle vehicle, User user) {
+        if (vehicle.getUser() == null || !vehicle.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized access");
+        }
     }
 }

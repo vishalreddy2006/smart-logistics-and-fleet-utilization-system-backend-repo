@@ -2,19 +2,20 @@ package com.smartlogistics.entity;
 
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-
-import com.smartlogistics.entity.listener.UserIdEntityListener;
 
 @Entity
 @Table(name = "vehicles")
-@EntityListeners(UserIdEntityListener.class)
 public class Vehicle {
 
     private static final Set<String> ALLOWED_MAINTENANCE_RISKS = Set.of("LOW", "MEDIUM", "HIGH");
@@ -38,8 +39,10 @@ public class Vehicle {
     @Column(name = "days_left_for_service")
     private Integer daysLeftForService;
 
-    @Column(name = "user_id")
-    private Long userId;
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
+    private User user;
 
     public Vehicle() {
     }
@@ -135,11 +138,16 @@ public class Vehicle {
         this.daysLeftForService = daysLeftForService;
     }
 
+    @JsonProperty("userId")
     public Long getUserId() {
-        return userId;
+        return user != null ? user.getId() : null;
     }
 
-    public void setUserId(Long userId) {
-        this.userId = userId;
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }
