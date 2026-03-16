@@ -2,11 +2,9 @@ package com.smartlogistics.entity;
 
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -39,9 +37,8 @@ public class Vehicle {
     @Column(name = "days_left_for_service")
     private Integer daysLeftForService;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonIgnore
     private User user;
 
     public Vehicle() {
@@ -136,11 +133,6 @@ public class Vehicle {
 
     public void setDaysLeftForService(Integer daysLeftForService) {
         this.daysLeftForService = daysLeftForService;
-    }
-
-    @JsonProperty("userId")
-    public Long getUserId() {
-        return user != null ? user.getId() : null;
     }
 
     public User getUser() {

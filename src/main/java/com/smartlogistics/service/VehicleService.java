@@ -33,13 +33,17 @@ public class VehicleService {
     }
 
     public Vehicle addVehicle(Vehicle vehicle) {
-        User user = getAuthenticatedUser();
+        User user = getCurrentUser();
+
+        // Assign the logged-in user as the vehicle owner
         vehicle.setUser(user);
+
+        // Save vehicle
         return vehicleRepository.save(vehicle);
     }
 
     public List<Vehicle> getVehiclesForCurrentUser() {
-        User user = getAuthenticatedUser();
+        User user = getCurrentUser();
         // Fetch only current user's vehicles; legacy rows with null user_id stay excluded.
         return vehicleRepository.findByUser_Id(user.getId()).stream()
                 .filter(vehicle -> vehicle.getUser() != null)
@@ -47,7 +51,7 @@ public class VehicleService {
     }
 
     public Vehicle updateVehicle(Long vehicleId, Vehicle vehicleDetails) {
-        User user = getAuthenticatedUser();
+        User user = getCurrentUser();
         Vehicle existingVehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new IllegalArgumentException("Vehicle not found with id: " + vehicleId));
 
@@ -64,7 +68,7 @@ public class VehicleService {
     }
 
     public List<Vehicle> scanFleetMaintenance() {
-        User user = getAuthenticatedUser();
+        User user = getCurrentUser();
         List<Vehicle> vehicles = vehicleRepository.findByUser_Id(user.getId()).stream()
             .filter(vehicle -> vehicle.getUser() != null)
             .collect(Collectors.toList());
@@ -82,7 +86,7 @@ public class VehicleService {
     }
 
     public void deleteVehicle(Long vehicleId) {
-        User user = getAuthenticatedUser();
+        User user = getCurrentUser();
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> new IllegalArgumentException("Vehicle not found with id: " + vehicleId));
 
@@ -95,7 +99,7 @@ public class VehicleService {
         vehicleRepository.deleteById(vehicleId);
     }
 
-    private User getAuthenticatedUser() {
+    private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || authentication.getName() == null
