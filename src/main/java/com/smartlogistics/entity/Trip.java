@@ -2,6 +2,7 @@ package com.smartlogistics.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,8 +10,11 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import com.smartlogistics.entity.listener.UserIdEntityListener;
+
 @Entity
 @Table(name = "trips")
+@EntityListeners(UserIdEntityListener.class)
 public class Trip {
 
     @Id
@@ -31,6 +35,9 @@ public class Trip {
     @ManyToOne
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
+
+    @Column(name = "user_id")
+    private Long userId;
 
     public Trip() {
     }
@@ -108,5 +115,13 @@ public class Trip {
 
     public void setVehicle(Vehicle vehicle) {
         this.vehicle = vehicle;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }

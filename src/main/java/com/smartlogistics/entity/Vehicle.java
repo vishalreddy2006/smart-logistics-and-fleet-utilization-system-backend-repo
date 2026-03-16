@@ -4,13 +4,17 @@ import java.util.Set;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import com.smartlogistics.entity.listener.UserIdEntityListener;
+
 @Entity
 @Table(name = "vehicles")
+@EntityListeners(UserIdEntityListener.class)
 public class Vehicle {
 
     private static final Set<String> ALLOWED_MAINTENANCE_RISKS = Set.of("LOW", "MEDIUM", "HIGH");
@@ -33,6 +37,9 @@ public class Vehicle {
 
     @Column(name = "days_left_for_service")
     private Integer daysLeftForService;
+
+    @Column(name = "user_id")
+    private Long userId;
 
     public Vehicle() {
     }
@@ -126,5 +133,13 @@ public class Vehicle {
 
     public void setDaysLeftForService(Integer daysLeftForService) {
         this.daysLeftForService = daysLeftForService;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }
