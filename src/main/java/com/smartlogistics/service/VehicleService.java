@@ -1,6 +1,7 @@
 package com.smartlogistics.service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -39,7 +40,10 @@ public class VehicleService {
 
     public List<Vehicle> getVehiclesForCurrentUser() {
         User user = getAuthenticatedUser();
-        return vehicleRepository.findByUserId(user.getId());
+        // Fetch only current user's vehicles; legacy rows with null user_id stay excluded.
+        return vehicleRepository.findByUser_Id(user.getId()).stream()
+                .filter(vehicle -> vehicle.getUser() != null)
+                .collect(Collectors.toList());
     }
 
     public Vehicle updateVehicle(Long vehicleId, Vehicle vehicleDetails) {
@@ -61,7 +65,9 @@ public class VehicleService {
 
     public List<Vehicle> scanFleetMaintenance() {
         User user = getAuthenticatedUser();
-        List<Vehicle> vehicles = vehicleRepository.findByUserId(user.getId());
+        List<Vehicle> vehicles = vehicleRepository.findByUser_Id(user.getId()).stream()
+            .filter(vehicle -> vehicle.getUser() != null)
+            .collect(Collectors.toList());
 
         for (Vehicle vehicle : vehicles) {
             int age = vehicle.getAge() != null ? vehicle.getAge() : 0;
