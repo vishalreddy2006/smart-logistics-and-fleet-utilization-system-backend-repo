@@ -68,7 +68,19 @@ public class VehicleService {
     }
 
     public List<Vehicle> scanFleetMaintenance() {
-        Long userId = new com.smartlogistics.util.UserContext(userRepository).getCurrentUserIdOrNull();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        Long userId = null;
+
+        if (authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getName())) {
+
+            String email = authentication.getName();
+
+            userId = userRepository.findByEmail(email)
+                    .map(user -> user.getId())
+                    .orElse(null);
+        }
 
         List<Vehicle> vehicles;
 
