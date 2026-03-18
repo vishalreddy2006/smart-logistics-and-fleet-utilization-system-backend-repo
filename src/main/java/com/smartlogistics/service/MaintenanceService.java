@@ -23,7 +23,7 @@ public class MaintenanceService {
         Long userId = userContext.getCurrentUserIdOrNull();
 
         if (userId == null) {
-            return List.of(); // no unauthorized fallback
+            return List.of(); // no fallback to all data
         }
 
         return vehicleRepository.findByUser_Id(userId);
