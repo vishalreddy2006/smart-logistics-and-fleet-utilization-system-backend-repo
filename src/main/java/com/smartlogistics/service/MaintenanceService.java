@@ -20,7 +20,13 @@ public class MaintenanceService {
     }
 
     public List<Vehicle> getMaintenanceData() {
-        return vehicleRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+
+        if (userId == null) {
+            return List.of(); // no unauthorized fallback
+        }
+
+        return vehicleRepository.findByUser_Id(userId);
     }
 
     public List<Vehicle> predictMaintenance() {

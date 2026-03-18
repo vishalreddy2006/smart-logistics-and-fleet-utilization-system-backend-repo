@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import com.smartlogistics.entity.Vehicle;
 import com.smartlogistics.repository.VehicleRepository;
 import com.smartlogistics.util.UserContext;
+
 import jakarta.persistence.EntityManager;
 
 /**

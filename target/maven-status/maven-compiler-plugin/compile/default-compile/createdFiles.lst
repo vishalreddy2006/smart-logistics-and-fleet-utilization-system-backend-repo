@@ -16,7 +16,6 @@ com\smartlogistics\service\VehicleRecommendationService.class
 com\smartlogistics\service\MaintenanceService.class
 com\smartlogistics\controller\MaintenanceController.class
 com\smartlogistics\dto\RouteEfficiencyResponse.class
-com\smartlogistics\entity\listener\UserIdEntityListener.class
 com\smartlogistics\service\VehicleRecommendationService$ScoredVehicle.class
 com\smartlogistics\service\CarbonEmissionService.class
 com\smartlogistics\dto\MaintenanceAlertResponse.class

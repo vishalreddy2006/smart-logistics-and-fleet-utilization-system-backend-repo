@@ -16,20 +16,28 @@ import com.smartlogistics.entity.Trip;
 import com.smartlogistics.entity.Vehicle;
 import com.smartlogistics.repository.TripRepository;
 import com.smartlogistics.repository.VehicleRepository;
+import com.smartlogistics.util.UserContext;
 
 @Service
 public class AnalyticsService {
 
     private final TripRepository tripRepository;
     private final VehicleRepository vehicleRepository;
+    private final UserContext userContext;
 
-    public AnalyticsService(TripRepository tripRepository, VehicleRepository vehicleRepository) {
+    public AnalyticsService(TripRepository tripRepository,
+                            VehicleRepository vehicleRepository,
+                            UserContext userContext) {
         this.tripRepository = tripRepository;
         this.vehicleRepository = vehicleRepository;
+        this.userContext = userContext;
     }
 
     public Map<String, Object> getTripActivity() {
-        List<Trip> trips = tripRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Trip> trips = userId != null
+                ? tripRepository.findByUserId(userId)
+                : List.of();
         List<Map<String, Object>> tripBuckets = buildTripCountTrend(trips);
 
         int totalTripsToday = tripBuckets.isEmpty()
@@ -51,7 +59,10 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getFuelUsage() {
-        List<Trip> trips = tripRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Trip> trips = userId != null
+            ? tripRepository.findByUserId(userId)
+            : List.of();
 
         double totalFuelConsumed = trips.stream()
                 .mapToDouble(Trip::getPredictedFuel)
@@ -81,7 +92,10 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getProfitAnalysis() {
-        List<Trip> trips = tripRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Trip> trips = userId != null
+            ? tripRepository.findByUserId(userId)
+            : List.of();
 
         double totalRevenue = 0.0;
         double totalFuelCost = 0.0;
@@ -115,7 +129,10 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getCarbonEmissions() {
-        List<Trip> trips = tripRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Trip> trips = userId != null
+            ? tripRepository.findByUserId(userId)
+            : List.of();
 
         double totalEmission = trips.stream()
                 .mapToDouble(Trip::getCarbonEmission)
@@ -145,7 +162,10 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getFleetUtilization() {
-        List<Vehicle> vehicles = vehicleRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Vehicle> vehicles = userId != null
+            ? vehicleRepository.findByUser_Id(userId)
+            : List.of();
 
         int availableVehicles = 0;
         int vehiclesInTrip = 0;
@@ -171,8 +191,13 @@ public class AnalyticsService {
     }
 
     public Map<String, Object> getVehiclePerformance() {
-        List<Trip> trips = tripRepository.findAll();
-        List<Vehicle> vehicles = vehicleRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Trip> trips = userId != null
+            ? tripRepository.findByUserId(userId)
+            : List.of();
+        List<Vehicle> vehicles = userId != null
+            ? vehicleRepository.findByUser_Id(userId)
+            : List.of();
 
         Map<Long, Vehicle> vehiclesById = new HashMap<>();
         for (Vehicle vehicle : vehicles) {
