@@ -6,14 +6,17 @@ import org.springframework.stereotype.Service;
 
 import com.smartlogistics.entity.Vehicle;
 import com.smartlogistics.repository.VehicleRepository;
+import com.smartlogistics.util.UserContext;
 
 @Service
 public class MaintenanceService {
 
     private final VehicleRepository vehicleRepository;
+    private final UserContext userContext;
 
-    public MaintenanceService(VehicleRepository vehicleRepository) {
+    public MaintenanceService(VehicleRepository vehicleRepository, UserContext userContext) {
         this.vehicleRepository = vehicleRepository;
+        this.userContext = userContext;
     }
 
     public List<Vehicle> getMaintenanceData() {
@@ -21,7 +24,8 @@ public class MaintenanceService {
     }
 
     public List<Vehicle> predictMaintenance() {
-        List<Vehicle> vehicles = vehicleRepository.findAll();
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Vehicle> vehicles = userId != null ? vehicleRepository.findByUser_Id(userId) : List.of();
 
         for (Vehicle vehicle : vehicles) {
             int age = vehicle.getAge() != null ? vehicle.getAge() : 0;
