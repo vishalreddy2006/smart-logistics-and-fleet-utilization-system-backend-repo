@@ -68,21 +68,39 @@ public class VehicleService {
     }
 
     public List<Vehicle> scanFleetMaintenance() {
-        User user = getCurrentUser();
-        List<Vehicle> vehicles = vehicleRepository.findByUser_Id(user.getId()).stream()
-            .filter(vehicle -> vehicle.getUser() != null)
-            .collect(Collectors.toList());
+        Long userId = new com.smartlogistics.util.UserContext(userRepository).getCurrentUserIdOrNull();
 
-        for (Vehicle vehicle : vehicles) {
-            int age = vehicle.getAge() != null ? vehicle.getAge() : 0;
-            double mileage = vehicle.getMileage() != null ? vehicle.getMileage() : 0.0;
+        List<Vehicle> vehicles;
 
-            String maintenanceRisk = maintenancePredictionService.predictRisk(age, mileage);
-            vehicle.setMaintenanceRisk(maintenanceRisk);
-            vehicleRepository.save(vehicle);
+        // Apply user-based filtering
+        if (userId != null) {
+            vehicles = vehicleRepository.findByUser_Id(userId);
+        } else {
+            vehicles = vehicleRepository.findAll(); // fallback (optional)
         }
 
-        return vehicles;
+        // KEEP EXISTING LOGIC BELOW THIS LINE (DO NOT MODIFY)
+        for (Vehicle vehicle : vehicles) {
+
+            int age = vehicle.getAge() != null ? vehicle.getAge() : 0;
+            double mileage = vehicle.getMileage() != null ? vehicle.getMileage() : 0;
+
+            double failureScore = (age * 5) + (mileage / 1000);
+            vehicle.setFailureScore(failureScore);
+
+            if (failureScore > 80) {
+                vehicle.setMaintenanceRisk("HIGH");
+                vehicle.setDaysLeftForService(0);
+            } else if (failureScore > 50) {
+                vehicle.setMaintenanceRisk("MEDIUM");
+                vehicle.setDaysLeftForService(30);
+            } else {
+                vehicle.setMaintenanceRisk("LOW");
+                vehicle.setDaysLeftForService(90);
+            }
+        }
+
+        return vehicleRepository.saveAll(vehicles);
     }
 
     public void deleteVehicle(Long vehicleId) {
