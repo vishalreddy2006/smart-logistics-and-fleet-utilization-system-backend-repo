@@ -14,6 +14,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     List<Vehicle> findByMaintenanceRisk(String maintenanceRisk);
 
+    List<Vehicle> findByUser_IdAndMaintenanceRisk(Long userId, String risk);
+
     List<Vehicle> findByUser_Id(Long userId);
 
     List<Vehicle> findByUserIsNull();
