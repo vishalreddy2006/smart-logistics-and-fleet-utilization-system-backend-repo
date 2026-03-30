@@ -51,19 +51,15 @@ public class TripService {
             if (vehicleId != null) {
                 assignedVehicle = vehicleRepository.findById(vehicleId).orElse(null);
 
-                // Verify ownership if user is authenticated
                 if (assignedVehicle != null && currentUserId != null
                         && (assignedVehicle.getUser() == null
                         || !assignedVehicle.getUser().getId().equals(currentUserId))) {
-
                     throw new RuntimeException("Unauthorized access: You can only create trips with your own vehicles");
-
                 }
             }
         }
 
         if (assignedVehicle == null) {
-            // Get available vehicles - filter by user if authenticated
             List<Vehicle> availableVehicles;
             if (currentUserId != null) {
                 availableVehicles = vehicleRepository.findByUser_Id(currentUserId);
@@ -73,19 +69,38 @@ public class TripService {
             } else {
                 availableVehicles = vehicleRepository.findByStatus("AVAILABLE");
             }
-
             assignedVehicle = vehicleRecommendationService.recommendVehicle(distance, loadWeight, availableVehicles);
         }
 
         int vehicleAge = assignedVehicle.getAge() != null ? assignedVehicle.getAge() : 0;
-        double predictedFuel = fuelPredictionService.predictFuel(distance, loadWeight, vehicleAge);
+        double mileage = assignedVehicle.getMileage() != null ? assignedVehicle.getMileage() : 5.0;
+
+        double predictedFuel = fuelPredictionService.predictFuel(distance, loadWeight, vehicleAge, mileage);
         double carbonEmission = carbonEmissionService.calculateEmission(predictedFuel);
+
+        // Efficiency score: compare expected (base) vs actual (LR) fuel
+        double safeMileage = mileage > 0 ? mileage : 1.0;
+        double baseFuel = distance / safeMileage;
+        double expectedFuel = baseFuel * (1 + loadWeight * 0.05 + vehicleAge * 0.03);
+        double efficiencyScore = (expectedFuel / predictedFuel) * 100;
+        efficiencyScore = Math.min(100, Math.max(0, efficiencyScore));
+
+        // Load-based vehicle recommendation
+        String recommendedVehicle;
+        if (loadWeight > 8) {
+            recommendedVehicle = "Truck";
+        } else if (loadWeight > 3) {
+            recommendedVehicle = "Mini Truck";
+        } else {
+            recommendedVehicle = "Van";
+        }
 
         trip.setPredictedFuel(predictedFuel);
         trip.setCarbonEmission(carbonEmission);
+        trip.setEfficiencyScore((Double) efficiencyScore);
+        trip.setRecommendedVehicle(recommendedVehicle);
         trip.setVehicle(assignedVehicle);
 
-        // Set the current user as the owner
         if (currentUserId != null) {
             trip.setUserId(currentUserId);
         }
@@ -95,8 +110,6 @@ public class TripService {
 
     public List<Trip> getAllTrips() {
         Long currentUserId = userContext.getCurrentUserIdOrNull();
-
-        // Filter by current user if authenticated
         if (currentUserId != null) {
             return tripRepository.findByUserId(currentUserId);
         } else {

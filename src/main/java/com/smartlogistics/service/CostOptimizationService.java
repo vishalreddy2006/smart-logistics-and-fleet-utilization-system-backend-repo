@@ -34,8 +34,8 @@ public class CostOptimizationService {
         this.vehicleRepository = vehicleRepository;
     }
 
-    public CostSummaryResponse getSummary() {
-        List<Trip> trips = tripRepository.findAll();
+    public CostSummaryResponse getSummary(Long userId) {
+        List<Trip> trips = tripRepository.findByUserId(userId);
 
         double totalRevenue = 0.0;
         double totalOperationalCost = 0.0;
@@ -68,9 +68,9 @@ public class CostOptimizationService {
         );
     }
 
-    public List<VehicleEfficiencyResponse> getVehicleEfficiency() {
-        List<Trip> trips = tripRepository.findAll();
-        List<Vehicle> vehicles = vehicleRepository.findAll();
+    public List<VehicleEfficiencyResponse> getVehicleEfficiency(Long userId) {
+        List<Trip> trips = tripRepository.findByUserId(userId);
+        List<Vehicle> vehicles = vehicleRepository.findByUser_Id(userId);
 
         Map<Long, Vehicle> vehicleMap = new HashMap<>();
         for (Vehicle v : vehicles) {
@@ -131,8 +131,8 @@ public class CostOptimizationService {
         return result;
     }
 
-    public List<RouteEfficiencyResponse> getRouteEfficiency() {
-        List<Trip> trips = tripRepository.findAll();
+    public List<RouteEfficiencyResponse> getRouteEfficiency(Long userId) {
+        List<Trip> trips = tripRepository.findByUserId(userId);
 
         // Group by source → destination
         Map<String, double[]> routeStats = new LinkedHashMap<>();
@@ -184,9 +184,9 @@ public class CostOptimizationService {
         return result;
     }
 
-    public List<CostRecommendationResponse> getRecommendations() {
-        List<Trip> trips = tripRepository.findAll();
-        List<Vehicle> vehicles = vehicleRepository.findAll();
+    public List<CostRecommendationResponse> getRecommendations(Long userId) {
+        List<Trip> trips = tripRepository.findByUserId(userId);
+        List<Vehicle> vehicles = vehicleRepository.findByUser_Id(userId);
         List<CostRecommendationResponse> recommendations = new ArrayList<>();
 
         if (trips.isEmpty()) {
@@ -294,7 +294,7 @@ public class CostOptimizationService {
         }
 
         // Best route for cost efficiency
-        List<RouteEfficiencyResponse> routes = getRouteEfficiency();
+        List<RouteEfficiencyResponse> routes = getRouteEfficiency(userId);
         if (!routes.isEmpty()) {
             RouteEfficiencyResponse bestRoute = routes.get(0);
             recommendations.add(new CostRecommendationResponse(

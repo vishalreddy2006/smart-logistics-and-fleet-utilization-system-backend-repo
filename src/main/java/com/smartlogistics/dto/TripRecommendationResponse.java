@@ -14,6 +14,8 @@ public class TripRecommendationResponse {
     private double carbonEmission;
     private Long vehicleId;
     private String vehicleType;
+    private double efficiencyScore;
+    private String recommendedVehicle;
 
     public TripRecommendationResponse() {
     }
@@ -27,6 +29,8 @@ public class TripRecommendationResponse {
         response.setLoadWeight(trip.getLoadWeight());
         response.setPredictedFuel(trip.getPredictedFuel());
         response.setCarbonEmission(trip.getCarbonEmission());
+        response.setEfficiencyScore(trip.getEfficiencyScore());
+        response.setRecommendedVehicle(trip.getRecommendedVehicle());
 
         Vehicle vehicle = trip.getVehicle();
         if (vehicle != null) {
@@ -107,5 +111,21 @@ public class TripRecommendationResponse {
 
     public void setVehicleType(String vehicleType) {
         this.vehicleType = vehicleType;
+    }
+
+    public double getEfficiencyScore() {
+        return efficiencyScore;
+    }
+
+    public void setEfficiencyScore(double efficiencyScore) {
+        this.efficiencyScore = efficiencyScore;
+    }
+
+    public String getRecommendedVehicle() {
+        return recommendedVehicle;
+    }
+
+    public void setRecommendedVehicle(String recommendedVehicle) {
+        this.recommendedVehicle = recommendedVehicle;
     }
 }

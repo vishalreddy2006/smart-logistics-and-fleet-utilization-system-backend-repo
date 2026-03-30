@@ -26,63 +26,115 @@ public class AnalyticsService {
     private final UserContext userContext;
 
     public AnalyticsService(TripRepository tripRepository,
-                            VehicleRepository vehicleRepository,
-                            UserContext userContext) {
+            VehicleRepository vehicleRepository,
+            UserContext userContext) {
         this.tripRepository = tripRepository;
         this.vehicleRepository = vehicleRepository;
         this.userContext = userContext;
     }
 
-    public Map<String, Object> getTripActivity() {
+    // ─── Summary endpoint (/api/analytics) ───────────────────────────────────
+
+    public Map<String, Object> getSummary() {
         Long userId = userContext.getCurrentUserIdOrNull();
-        List<Trip> trips = userId != null
-                ? tripRepository.findByUserId(userId)
-                : List.of();
-        List<Map<String, Object>> tripBuckets = buildTripCountTrend(trips);
+        List<Trip> trips = userId != null ? tripRepository.findByUserId(userId) : List.of();
+        List<Vehicle> vehicles = userId != null ? vehicleRepository.findByUser_Id(userId) : List.of();
 
-        int totalTripsToday = tripBuckets.isEmpty()
-                ? 0
-                : ((Number) tripBuckets.get(tripBuckets.size() - 1).get("value")).intValue();
+        int totalTrips = trips.size();
+        double totalDistance = trips.stream().mapToDouble(t -> t.getDistance() != null ? t.getDistance() : 0.0).sum();
+        double totalFuel = trips.stream().mapToDouble(Trip::getPredictedFuel).sum();
+        double totalCO2 = trips.stream().mapToDouble(Trip::getCarbonEmission).sum();
 
-        double averageTripDistance = trips.stream()
-                .map(Trip::getDistance)
-                .filter(distance -> distance != null)
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.0);
+        long availableVehicles = vehicles.stream()
+                .filter(v -> "ACTIVE".equalsIgnoreCase(v.getStatus()) || "AVAILABLE".equalsIgnoreCase(v.getStatus()))
+                .count();
+
+        long maintenanceAlerts = vehicles.stream()
+                .filter(v -> "HIGH".equalsIgnoreCase(v.getMaintenanceRisk()))
+                .count();
+
+        double revenue = totalDistance * 45.0;
+        double fuelCost = totalFuel * 95.0;
+        double maintenanceCost = maintenanceAlerts * 5000.0;
+        double totalCost = fuelCost + maintenanceCost;
+        double netProfit = revenue - totalCost;
+
+        double efficiencyScore = totalFuel > 0 ? Math.min(100.0, (totalDistance / totalFuel) * 5.0) : 0.0;
+
+        // Chart data grouped by real created_at date
+        Map<LocalDate, long[]> byDate = new LinkedHashMap<>();
+        LocalDate today = LocalDate.now();
+        for (int i = 6; i >= 0; i--) {
+            byDate.put(today.minusDays(i), new long[]{0, 0}); // [tripCount, fuel*100]
+        }
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM", Locale.ENGLISH);
+        for (Trip t : trips) {
+            LocalDate date = t.getCreatedAt() != null ? t.getCreatedAt().toLocalDate() : today;
+            if (byDate.containsKey(date)) {
+                byDate.get(date)[0]++;
+                byDate.get(date)[1] += Math.round(t.getPredictedFuel() * 100);
+            }
+        }
+
+        List<String> dates = new ArrayList<>();
+        List<Integer> tripsPerDay = new ArrayList<>();
+        List<Double> fuelTrend = new ArrayList<>();
+
+        for (Map.Entry<LocalDate, long[]> e : byDate.entrySet()) {
+            dates.add(e.getKey().format(fmt));
+            tripsPerDay.add((int) e.getValue()[0]);
+            fuelTrend.add(e.getValue()[1] / 100.0);
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("totalTripsToday", totalTripsToday);
+        result.put("totalTrips", totalTrips);
+        result.put("totalDistance", round2(totalDistance));
+        result.put("totalFuel", round2(totalFuel));
+        result.put("totalCO2", round2(totalCO2));
+        result.put("availableVehicles", availableVehicles);
+        result.put("maintenanceAlerts", maintenanceAlerts);
+        result.put("revenue", round2(revenue));
+        result.put("fuelCost", round2(fuelCost));
+        result.put("maintenanceCost", round2(maintenanceCost));
+        result.put("totalCost", round2(totalCost));
+        result.put("netProfit", round2(netProfit));
+        result.put("efficiencyScore", round2(efficiencyScore));
+        result.put("dates", dates);
+        result.put("tripsPerDay", tripsPerDay);
+        result.put("fuelTrend", fuelTrend);
+        return result;
+    }
+
+    // ─── Existing endpoints (preserved) ──────────────────────────────────────
+
+    public Map<String, Object> getTripActivity() {
+        Long userId = userContext.getCurrentUserIdOrNull();
+        List<Trip> trips = userId != null ? tripRepository.findByUserId(userId) : List.of();
+
+        int totalTrips = trips.size();
+        double averageTripDistance = trips.stream()
+                .filter(t -> t.getDistance() != null)
+                .mapToDouble(Trip::getDistance)
+                .average().orElse(0.0);
+
+        List<Map<String, Object>> tripsPerDay = buildDateTrend(trips, "tripCount");
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalTripsToday", totalTrips);
         result.put("averageTripDistance", round2(averageTripDistance));
-        result.put("tripsPerDay", tripBuckets);
+        result.put("tripsPerDay", tripsPerDay);
         return result;
     }
 
     public Map<String, Object> getFuelUsage() {
         Long userId = userContext.getCurrentUserIdOrNull();
-        List<Trip> trips = userId != null
-            ? tripRepository.findByUserId(userId)
-            : List.of();
+        List<Trip> trips = userId != null ? tripRepository.findByUserId(userId) : List.of();
 
-        double totalFuelConsumed = trips.stream()
-                .mapToDouble(Trip::getPredictedFuel)
-                .sum();
-
+        double totalFuelConsumed = trips.stream().mapToDouble(Trip::getPredictedFuel).sum();
         double averageFuelPerTrip = trips.isEmpty() ? 0.0 : totalFuelConsumed / trips.size();
 
-        Map<LocalDate, List<Trip>> tripsByDate = distributeTripsAcrossLast7Days(trips);
-        List<Map<String, Object>> fuelUsageTrend = new ArrayList<>();
-
-        for (LocalDate date : sortedDates(tripsByDate)) {
-            double fuel = tripsByDate.get(date).stream()
-                    .mapToDouble(Trip::getPredictedFuel)
-                    .sum();
-
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("label", date.format(DateTimeFormatter.ofPattern("dd MMM", Locale.ENGLISH)));
-            item.put("value", round2(fuel));
-            fuelUsageTrend.add(item);
-        }
+        List<Map<String, Object>> fuelUsageTrend = buildDateTrend(trips, "fuel");
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("totalFuelConsumed", round2(totalFuelConsumed));
@@ -93,36 +145,21 @@ public class AnalyticsService {
 
     public Map<String, Object> getProfitAnalysis() {
         Long userId = userContext.getCurrentUserIdOrNull();
-        List<Trip> trips = userId != null
-            ? tripRepository.findByUserId(userId)
-            : List.of();
+        List<Trip> trips = userId != null ? tripRepository.findByUserId(userId) : List.of();
+        List<Vehicle> vehicles = userId != null ? vehicleRepository.findByUser_Id(userId) : List.of();
 
-        double totalRevenue = 0.0;
-        double totalFuelCost = 0.0;
-        double totalMaintenanceCost = 0.0;
+        double totalDistance = trips.stream().mapToDouble(t -> t.getDistance() != null ? t.getDistance() : 0.0).sum();
+        double totalFuel = trips.stream().mapToDouble(Trip::getPredictedFuel).sum();
+        long highRiskCount = vehicles.stream().filter(v -> "HIGH".equalsIgnoreCase(v.getMaintenanceRisk())).count();
 
-        for (Trip trip : trips) {
-            Double tripDistance = trip.getDistance();
-            Double tripLoadWeight = trip.getLoadWeight();
-
-            double distance = tripDistance == null ? 0.0 : tripDistance;
-            double loadWeight = tripLoadWeight == null ? 0.0 : tripLoadWeight;
-            double fuel = trip.getPredictedFuel();
-
-            double tripRevenue = (distance * 45.0) + (loadWeight * 1.2);
-            double fuelCost = fuel * 105.0;
-            double maintenanceCost = estimateMaintenanceCost(trip.getVehicle());
-
-            totalRevenue += tripRevenue;
-            totalFuelCost += fuelCost;
-            totalMaintenanceCost += maintenanceCost;
-        }
-
-        double totalCost = totalFuelCost + totalMaintenanceCost;
-        double netProfit = totalRevenue - totalCost;
+        double revenue = totalDistance * 45.0;
+        double fuelCost = totalFuel * 95.0;
+        double maintenanceCost = highRiskCount * 5000.0;
+        double totalCost = fuelCost + maintenanceCost;
+        double netProfit = revenue - totalCost;
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("totalRevenue", round2(totalRevenue));
+        result.put("totalRevenue", round2(revenue));
         result.put("totalCost", round2(totalCost));
         result.put("netProfit", round2(netProfit));
         return result;
@@ -130,29 +167,12 @@ public class AnalyticsService {
 
     public Map<String, Object> getCarbonEmissions() {
         Long userId = userContext.getCurrentUserIdOrNull();
-        List<Trip> trips = userId != null
-            ? tripRepository.findByUserId(userId)
-            : List.of();
+        List<Trip> trips = userId != null ? tripRepository.findByUserId(userId) : List.of();
 
-        double totalEmission = trips.stream()
-                .mapToDouble(Trip::getCarbonEmission)
-                .sum();
-
+        double totalEmission = trips.stream().mapToDouble(Trip::getCarbonEmission).sum();
         double averageEmissionPerTrip = trips.isEmpty() ? 0.0 : totalEmission / trips.size();
 
-        Map<LocalDate, List<Trip>> tripsByDate = distributeTripsAcrossLast7Days(trips);
-        List<Map<String, Object>> emissionTrend = new ArrayList<>();
-
-        for (LocalDate date : sortedDates(tripsByDate)) {
-            double emission = tripsByDate.get(date).stream()
-                    .mapToDouble(Trip::getCarbonEmission)
-                    .sum();
-
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("label", date.format(DateTimeFormatter.ofPattern("dd MMM", Locale.ENGLISH)));
-            item.put("value", round2(emission));
-            emissionTrend.add(item);
-        }
+        List<Map<String, Object>> emissionTrend = buildDateTrend(trips, "co2");
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("totalEmission", round2(totalEmission));
@@ -163,23 +183,16 @@ public class AnalyticsService {
 
     public Map<String, Object> getFleetUtilization() {
         Long userId = userContext.getCurrentUserIdOrNull();
-        List<Vehicle> vehicles = userId != null
-            ? vehicleRepository.findByUser_Id(userId)
-            : List.of();
+        List<Vehicle> vehicles = userId != null ? vehicleRepository.findByUser_Id(userId) : List.of();
 
-        int availableVehicles = 0;
-        int vehiclesInTrip = 0;
-        int vehiclesUnderMaintenance = 0;
-
-        for (Vehicle vehicle : vehicles) {
-            String status = vehicle.getStatus() == null ? "" : vehicle.getStatus().trim().toUpperCase();
-
+        int availableVehicles = 0, vehiclesInTrip = 0, vehiclesUnderMaintenance = 0;
+        for (Vehicle v : vehicles) {
+            String status = v.getStatus() == null ? "" : v.getStatus().trim().toUpperCase();
             switch (status) {
-                case "AVAILABLE" -> availableVehicles++;
+                case "AVAILABLE", "ACTIVE" -> availableVehicles++;
                 case "IN_TRIP", "IN_USE", "BUSY" -> vehiclesInTrip++;
                 case "MAINTENANCE", "UNDER_MAINTENANCE" -> vehiclesUnderMaintenance++;
-                default -> {
-                }
+                default -> {}
             }
         }
 
@@ -192,117 +205,67 @@ public class AnalyticsService {
 
     public Map<String, Object> getVehiclePerformance() {
         Long userId = userContext.getCurrentUserIdOrNull();
-        List<Trip> trips = userId != null
-            ? tripRepository.findByUserId(userId)
-            : List.of();
-        List<Vehicle> vehicles = userId != null
-            ? vehicleRepository.findByUser_Id(userId)
-            : List.of();
+        List<Trip> trips = userId != null ? tripRepository.findByUserId(userId) : List.of();
+        List<Vehicle> vehicles = userId != null ? vehicleRepository.findByUser_Id(userId) : List.of();
 
         Map<Long, Vehicle> vehiclesById = new HashMap<>();
-        for (Vehicle vehicle : vehicles) {
-            vehiclesById.put(vehicle.getVehicleId(), vehicle);
-        }
+        for (Vehicle v : vehicles) vehiclesById.put(v.getVehicleId(), v);
 
-        Map<Long, Integer> tripCountByVehicle = new HashMap<>();
+        Map<Long, Integer> tripCount = new HashMap<>();
         Map<Long, Double> fuelByVehicle = new HashMap<>();
-
-        for (Trip trip : trips) {
-            if (trip.getVehicle() == null || trip.getVehicle().getVehicleId() == null) {
-                continue;
-            }
-
-            Long vehicleId = trip.getVehicle().getVehicleId();
-            tripCountByVehicle.put(vehicleId, tripCountByVehicle.getOrDefault(vehicleId, 0) + 1);
-            fuelByVehicle.put(vehicleId, fuelByVehicle.getOrDefault(vehicleId, 0.0) + trip.getPredictedFuel());
+        for (Trip t : trips) {
+            if (t.getVehicle() == null || t.getVehicle().getVehicleId() == null) continue;
+            Long vid = t.getVehicle().getVehicleId();
+            tripCount.merge(vid, 1, Integer::sum);
+            fuelByVehicle.merge(vid, t.getPredictedFuel(), Double::sum);
         }
 
         List<Map<String, Object>> tripCountPerVehicle = new ArrayList<>();
-        for (Map.Entry<Long, Integer> entry : tripCountByVehicle.entrySet()) {
-            Long vehicleId = entry.getKey();
-            Vehicle vehicle = vehiclesById.get(vehicleId);
-
+        for (Map.Entry<Long, Integer> e : tripCount.entrySet()) {
+            Long vid = e.getKey();
+            Vehicle v = vehiclesById.get(vid);
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("vehicleId", vehicleId);
-            item.put("vehicleType", vehicle != null ? vehicle.getVehicleType() : "Unknown");
-            item.put("tripCount", entry.getValue());
-            item.put("fuelUsed", round2(fuelByVehicle.getOrDefault(vehicleId, 0.0)));
-            item.put("maintenanceRisk", vehicle != null ? vehicle.getMaintenanceRisk() : null);
+            item.put("vehicleId", vid);
+            item.put("vehicleType", v != null ? v.getVehicleType() : "Unknown");
+            item.put("tripCount", e.getValue());
+            item.put("fuelUsed", round2(fuelByVehicle.getOrDefault(vid, 0.0)));
+            item.put("maintenanceRisk", v != null ? v.getMaintenanceRisk() : null);
             tripCountPerVehicle.add(item);
         }
-
-        tripCountPerVehicle.sort((a, b) -> Integer.compare(
-                ((Number) b.get("tripCount")).intValue(),
-                ((Number) a.get("tripCount")).intValue()
-        ));
-
-        List<Map<String, Object>> topUsedVehicles = tripCountPerVehicle.stream()
-                .limit(5)
-                .toList();
+        tripCountPerVehicle.sort(Comparator.comparingInt(a -> -((Number) a.get("tripCount")).intValue()));
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("topUsedVehicles", topUsedVehicles);
+        result.put("topUsedVehicles", tripCountPerVehicle.stream().limit(5).toList());
         result.put("tripCountPerVehicle", tripCountPerVehicle);
         return result;
     }
 
-    private List<Map<String, Object>> buildTripCountTrend(List<Trip> trips) {
-        Map<LocalDate, List<Trip>> tripsByDate = distributeTripsAcrossLast7Days(trips);
-        List<Map<String, Object>> trend = new ArrayList<>();
+    // ─── Helpers ─────────────────────────────────────────────────────────────
 
-        for (LocalDate date : sortedDates(tripsByDate)) {
+    private List<Map<String, Object>> buildDateTrend(List<Trip> trips, String mode) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM", Locale.ENGLISH);
+        LocalDate today = LocalDate.now();
+        Map<LocalDate, double[]> buckets = new LinkedHashMap<>();
+        for (int i = 6; i >= 0; i--) buckets.put(today.minusDays(i), new double[]{0});
+
+        for (Trip t : trips) {
+            LocalDate date = t.getCreatedAt() != null ? t.getCreatedAt().toLocalDate() : today;
+            if (!buckets.containsKey(date)) continue;
+            switch (mode) {
+                case "tripCount" -> buckets.get(date)[0]++;
+                case "fuel" -> buckets.get(date)[0] += t.getPredictedFuel();
+                case "co2" -> buckets.get(date)[0] += t.getCarbonEmission();
+            }
+        }
+
+        List<Map<String, Object>> trend = new ArrayList<>();
+        for (Map.Entry<LocalDate, double[]> e : buckets.entrySet()) {
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("label", date.format(DateTimeFormatter.ofPattern("dd MMM", Locale.ENGLISH)));
-            item.put("value", tripsByDate.get(date).size());
+            item.put("label", e.getKey().format(fmt));
+            item.put("value", "tripCount".equals(mode) ? (int) e.getValue()[0] : round2(e.getValue()[0]));
             trend.add(item);
         }
-
         return trend;
-    }
-
-    private Map<LocalDate, List<Trip>> distributeTripsAcrossLast7Days(List<Trip> trips) {
-        List<Trip> sortedTrips = trips.stream()
-                .sorted(Comparator.comparing(Trip::getTripId, Comparator.nullsLast(Long::compareTo)))
-                .toList();
-
-        Map<LocalDate, List<Trip>> grouped = new LinkedHashMap<>();
-        LocalDate today = LocalDate.now();
-
-        for (int i = 6; i >= 0; i--) {
-            grouped.put(today.minusDays(i), new ArrayList<>());
-        }
-
-        if (sortedTrips.isEmpty()) {
-            return grouped;
-        }
-
-        List<LocalDate> dates = new ArrayList<>(grouped.keySet());
-        for (int i = 0; i < sortedTrips.size(); i++) {
-            Trip trip = sortedTrips.get(i);
-            LocalDate date = dates.get(i % dates.size());
-            grouped.get(date).add(trip);
-        }
-
-        return grouped;
-    }
-
-    private List<LocalDate> sortedDates(Map<LocalDate, List<Trip>> tripsByDate) {
-        return tripsByDate.keySet().stream().sorted().toList();
-    }
-
-    private double estimateMaintenanceCost(Vehicle vehicle) {
-        if (vehicle == null || vehicle.getMaintenanceRisk() == null) {
-            return 150.0;
-        }
-
-        String risk = vehicle.getMaintenanceRisk().trim().toUpperCase();
-        if ("HIGH".equals(risk)) {
-            return 500.0;
-        }
-        if ("MEDIUM".equals(risk)) {
-            return 300.0;
-        }
-        return 150.0;
     }
 
     private double round2(double value) {

@@ -1,5 +1,7 @@
 package com.smartlogistics.entity;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -28,12 +30,21 @@ public class Trip {
     @Column(name = "carbon_emission")
     private double carbonEmission;
 
+    @Column(name = "efficiency_score")
+    private Double efficiencyScore;
+
+    @Column(name = "recommended_vehicle")
+    private String recommendedVehicle;
+
     @ManyToOne
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 
     @Column(name = "user_id")
     private Long userId;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     public Trip() {
     }
@@ -105,6 +116,22 @@ public class Trip {
         this.carbonEmission = carbonEmission;
     }
 
+    public Double getEfficiencyScore() {
+        return efficiencyScore != null ? efficiencyScore : 0.0;
+    }
+
+    public void setEfficiencyScore(Double efficiencyScore) {
+        this.efficiencyScore = efficiencyScore;
+    }
+
+    public String getRecommendedVehicle() {
+        return recommendedVehicle;
+    }
+
+    public void setRecommendedVehicle(String recommendedVehicle) {
+        this.recommendedVehicle = recommendedVehicle;
+    }
+
     public Vehicle getVehicle() {
         return vehicle;
     }
@@ -119,5 +146,9 @@ public class Trip {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }

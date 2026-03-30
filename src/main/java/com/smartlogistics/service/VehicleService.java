@@ -23,9 +23,9 @@ public class VehicleService {
     private final UserRepository userRepository;
 
     public VehicleService(VehicleRepository vehicleRepository,
-                          TripRepository tripRepository,
-                          MaintenancePredictionService maintenancePredictionService,
-                          UserRepository userRepository) {
+            TripRepository tripRepository,
+            MaintenancePredictionService maintenancePredictionService,
+            UserRepository userRepository) {
         this.vehicleRepository = vehicleRepository;
         this.tripRepository = tripRepository;
         this.maintenancePredictionService = maintenancePredictionService;
@@ -44,7 +44,8 @@ public class VehicleService {
 
     public List<Vehicle> getVehiclesForCurrentUser() {
         User user = getCurrentUser();
-        // Fetch only current user's vehicles; legacy rows with null user_id stay excluded.
+        // Fetch only current user's vehicles; legacy rows with null user_id stay
+        // excluded.
         return vehicleRepository.findByUser_Id(user.getId()).stream()
                 .filter(vehicle -> vehicle.getUser() != null)
                 .collect(Collectors.toList());

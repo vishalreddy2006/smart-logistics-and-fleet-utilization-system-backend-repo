@@ -25,11 +25,16 @@ public class AnalyticsController {
     private final UserRepository userRepository;
 
     public AnalyticsController(VehicleRepository vehicleRepository,
-                               AnalyticsService analyticsService,
-                               UserRepository userRepository) {
+            AnalyticsService analyticsService,
+            UserRepository userRepository) {
         this.vehicleRepository = vehicleRepository;
         this.analyticsService = analyticsService;
         this.userRepository = userRepository;
+    }
+
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getSummary() {
+        return ResponseEntity.ok(analyticsService.getSummary());
     }
 
     @GetMapping("/maintenance-alerts")

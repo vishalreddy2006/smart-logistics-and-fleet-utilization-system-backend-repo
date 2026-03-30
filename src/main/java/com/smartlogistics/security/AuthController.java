@@ -11,12 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
-
 import com.smartlogistics.entity.User;
 import com.smartlogistics.repository.UserRepository;
 
-@CrossOrigin(origins = {"https://vishalreddy2006.github.io", "http://localhost:3000", "http://localhost:5173"})
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {

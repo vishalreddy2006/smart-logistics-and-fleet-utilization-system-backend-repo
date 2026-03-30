@@ -1,31 +1,39 @@
 package com.smartlogistics.dto;
 
+import java.util.List;
+
 public class RouteOptionResponse {
 
     private String routeName;
+    private String routeType;
     private double distance;
     private double estimatedTime;
     private double predictedFuel;
     private double carbonEmission;
     private double routeScore;
+    private List<List<Double>> coordinates;
 
     public RouteOptionResponse() {
     }
 
     public RouteOptionResponse(
             String routeName,
+            String routeType,
             double distance,
             double estimatedTime,
             double predictedFuel,
             double carbonEmission,
-            double routeScore
+            double routeScore,
+            List<List<Double>> coordinates
     ) {
         this.routeName = routeName;
+        this.routeType = routeType;
         this.distance = distance;
         this.estimatedTime = estimatedTime;
         this.predictedFuel = predictedFuel;
         this.carbonEmission = carbonEmission;
         this.routeScore = routeScore;
+        this.coordinates = coordinates;
     }
 
     public String getRouteName() {
@@ -74,5 +82,21 @@ public class RouteOptionResponse {
 
     public void setRouteScore(double routeScore) {
         this.routeScore = routeScore;
+    }
+
+    public String getRouteType() {
+        return routeType;
+    }
+
+    public void setRouteType(String routeType) {
+        this.routeType = routeType;
+    }
+
+    public List<List<Double>> getCoordinates() {
+        return coordinates;
+    }
+
+    public void setCoordinates(List<List<Double>> coordinates) {
+        this.coordinates = coordinates;
     }
 }

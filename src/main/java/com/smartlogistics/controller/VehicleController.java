@@ -28,27 +28,18 @@ public class VehicleController {
 
     @PostMapping("/add")
     public ResponseEntity<Vehicle> addVehicle(@RequestBody Vehicle vehicle) {
-        Vehicle savedVehicle = vehicleService.addVehicle(vehicle);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedVehicle);
+        return ResponseEntity.status(HttpStatus.CREATED).body(vehicleService.addVehicle(vehicle));
     }
 
     @GetMapping("/all")
     public ResponseEntity<List<Vehicle>> getAllVehicles() {
-        List<Vehicle> vehicles = vehicleService.getVehiclesForCurrentUser();
-        return ResponseEntity.ok(vehicles);
-    }
-
-    @GetMapping
-    public ResponseEntity<List<Vehicle>> getVehicles() {
-        List<Vehicle> vehicles = vehicleService.getVehiclesForCurrentUser();
-        return ResponseEntity.ok(vehicles);
+        return ResponseEntity.ok(vehicleService.getVehiclesForCurrentUser());
     }
 
     @PutMapping("/update/{id}")
     public ResponseEntity<Vehicle> updateVehicle(@PathVariable Long id, @RequestBody Vehicle vehicle) {
         try {
-            Vehicle updatedVehicle = vehicleService.updateVehicle(id, vehicle);
-            return ResponseEntity.ok(updatedVehicle);
+            return ResponseEntity.ok(vehicleService.updateVehicle(id, vehicle));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.notFound().build();
         }
@@ -60,14 +51,12 @@ public class VehicleController {
             vehicleService.deleteVehicle(id);
             return ResponseEntity.ok("Vehicle deleted successfully.");
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Vehicle not found with id: " + id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Vehicle not found with id: " + id);
         }
     }
 
     @PostMapping("/run-maintenance-check")
     public ResponseEntity<List<Vehicle>> runMaintenanceCheck() {
-        List<Vehicle> updatedVehicles = vehicleService.scanFleetMaintenance();
-        return ResponseEntity.ok(updatedVehicles);
+        return ResponseEntity.ok(vehicleService.scanFleetMaintenance());
     }
 }

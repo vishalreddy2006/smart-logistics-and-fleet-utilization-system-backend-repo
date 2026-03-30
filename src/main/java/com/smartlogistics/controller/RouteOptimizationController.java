@@ -22,13 +22,11 @@ public class RouteOptimizationController {
     @GetMapping("/optimize")
     public ResponseEntity<RouteOptimizationResponse> optimizeRoutes(
             @RequestParam String source,
-            @RequestParam String destination
-    ) {
+            @RequestParam String destination) {
+
         if (source == null || source.isBlank() || destination == null || destination.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-
-        RouteOptimizationResponse response = routeOptimizationService.optimizeRoutes(source, destination);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(routeOptimizationService.optimizeRoutes(source, destination));
     }
 }

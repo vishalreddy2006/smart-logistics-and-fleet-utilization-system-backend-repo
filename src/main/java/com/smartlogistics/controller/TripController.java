@@ -27,19 +27,11 @@ public class TripController {
     @PostMapping("/create")
     public ResponseEntity<TripRecommendationResponse> createTrip(@RequestBody Trip trip) {
         Trip savedTrip = tripService.createTrip(trip);
-        TripRecommendationResponse response = TripRecommendationResponse.fromTrip(savedTrip);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(TripRecommendationResponse.fromTrip(savedTrip));
     }
 
     @GetMapping("/all")
     public ResponseEntity<List<Trip>> getAllTrips() {
-        List<Trip> trips = tripService.getAllTrips();
-        return ResponseEntity.ok(trips);
-    }
-
-    @GetMapping
-    public ResponseEntity<List<Trip>> getTrips() {
-        List<Trip> trips = tripService.getAllTrips();
-        return ResponseEntity.ok(trips);
+        return ResponseEntity.ok(tripService.getAllTrips());
     }
 }
